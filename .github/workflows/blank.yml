@@ -22,4 +22,4 @@ jobs:
 
       - name: Print out environment variables
         shell: pwsh
-        run: Test-Path resultsfile.log | Should -Be $true
+        run: dir env:
