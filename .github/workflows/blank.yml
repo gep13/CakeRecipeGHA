@@ -20,6 +20,8 @@ jobs:
           dir env:
           
       - name: Get Branch
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
         run: |
           raw=$(git branch -r --contains ${{ github.ref }})
           branch=${raw/origin\/}
