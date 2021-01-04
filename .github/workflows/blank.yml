@@ -1,32 +1,50 @@
-# This is a basic workflow to help you get started with Actions
-
-name: CI
+name: Build
 
 on:
   push:
-
-  workflow_dispatch:
+    paths-ignore:
+      - "README.md"
+  pull_request:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    #mimic "skip_branch_with_pr: true", see https://github.community/t/duplicate-checks-on-push-and-pull-request-simultaneous-event/18012/4
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v2.3.1
-      
+      - uses: actions/checkout@v2.3.4
       - name: Fetch all history for all tags and branches
         run: git fetch --prune --unshallow
-
-      - name: Print out environment variables
-        shell: pwsh
-        run: |
-          dir env:
-          
-      - name: Get Branch
-        env:
-          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-        run: |
-          raw=$(git branch -r --contains ${{ github.ref }})
-          branch=${raw/origin\/}
-          echo ::set-env name=BRANCH::$branch
-      - run: echo ${{ env.BRANCH }}
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: tools
+          key: ${{ runner.os }}-tools-${{ hashFiles('recipe.cake') }}
+      - name: Build project
+        uses: cake-build/cake-action@v1
+        with:
+          script-path: recipe.cake
+          target: clean
+          verbosity: Diagnostic
+          cake-version: 0.38.5
+          cake-bootstrap: true
+      # currently, Cake.Recipe does not upload artifacts when run on gh-actions
+      - name: Upload Issues
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: warn
+          name: ${{ matrix.os }} Issues
+          path: |
+            BuildArtifacts/report.html
+            BuildArtifacts/**/coverlet/*.xml
+      - name: Upload Packages
+        uses: actions/upload-artifact@v2
+        if: matrix.os == 'windows-latest'
+        with:
+          if-no-files-found: warn
+          name: package
+          path: BuildArtifacts/Packages/**/*
