@@ -22,4 +22,5 @@ jobs:
 
       - name: Print out environment variables
         shell: pwsh
-        run: dir env:
+        run: |
+          dir env:
